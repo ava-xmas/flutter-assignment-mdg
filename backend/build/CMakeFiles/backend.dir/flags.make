@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = 
+CXX_INCLUDES = -I/home/avantika/repos/flutter-assignment/backend/libbcrypt/include
 
 CXX_FLAGS = -std=gnu++17
 

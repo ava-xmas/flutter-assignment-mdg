@@ -1,1 +1,1 @@
-/usr/bin/c++ CMakeFiles/backend.dir/main.cpp.o -o backend  -lpthread /usr/lib/x86_64-linux-gnu/libsqlite3.so 
+/usr/bin/c++ CMakeFiles/backend.dir/main.cpp.o -o backend   -L/home/avantika/repos/flutter-assignment/backend/libbcrypt/build  -Wl,-rpath,/home/avantika/repos/flutter-assignment/backend/libbcrypt/build -lpthread /usr/lib/x86_64-linux-gnu/libsqlite3.so -lbcrypt 
