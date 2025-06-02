@@ -1,0 +1,3 @@
+/home/avantika/repos/flutter-assignment/backend/build/CMakeFiles/backend.dir
+/home/avantika/repos/flutter-assignment/backend/build/CMakeFiles/edit_cache.dir
+/home/avantika/repos/flutter-assignment/backend/build/CMakeFiles/rebuild_cache.dir
