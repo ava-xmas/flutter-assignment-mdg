@@ -192,6 +192,7 @@ int main()
     CROW_ROUTE(app, "/")([]()
                          { return "Book review backend is running!!"; });
 
+    // registration
     CROW_ROUTE(app, "/register").methods(crow::HTTPMethod::POST)([](const crow::request &req)
                                                                  {
         auto body = crow::json::load(req.body);
@@ -214,6 +215,7 @@ int main()
         // create user
         return crow::response(200, "User registered"); });
 
+    // login
     CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req)
                                                               {
         auto body = crow::json::load(req.body);
@@ -232,6 +234,341 @@ int main()
         } else {
             return crow::response(401, "Invalid username or password");
         } });
+
+    // getting all books
+    CROW_ROUTE(app, "/books/<int>/reviews").methods(crow::HTTPMethod::GET)([](const crow::request &req, crow::response &res, int book_id)
+                                                                           {
+            sqlite3* db = openDB("book_review.sqlite");
+            if (!db) {
+                res.code = 500;
+                res.write("database error");
+                res.end();
+                return;
+            }
+    
+            const char* sql = R"(
+                SELECT r.rating, r.comment, u.username
+                FROM reviews r
+                JOIN users u ON r.user_id = u.id
+                WHERE r.book_id = ?;
+            )";
+    
+            sqlite3_stmt* stmt = nullptr;
+            if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare statement");
+                res.end();
+                return;
+            }
+    
+            sqlite3_bind_int(stmt, 1, book_id);
+    
+            crow::json::wvalue reviews = crow::json::wvalue::list();
+            int index = 0;
+    
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                crow::json::wvalue review;
+                review["rating"] = sqlite3_column_int(stmt, 0);
+    
+                const char* comment_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                review["comment"] = comment_text ? comment_text : "";
+    
+                const char* username_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                review["username"] = username_text ? username_text : "";
+    
+                reviews[index++] = std::move(review);
+            }
+    
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+    
+            res.set_header("Content-Type", "application/json");
+            res.code = 200;
+            res.write(reviews.dump());
+            res.end(); });
+
+    // post a review on a selected book
+    CROW_ROUTE(app, "/books/<int>/review").methods(crow::HTTPMethod::POST)([](const crow::request &req, crow::response &res, int book_id)
+                                                                           {
+            auto body = crow::json::load(req.body);
+            if (!body)
+            {
+                res.code = 400;
+                res.write("invalid JSON");
+                return res.end();
+            }
+    
+            std::string username = body["username"].s();
+            int rating = body["rating"].i();
+            std::string comment = body["comment"].s();
+    
+            if (username.empty() || rating < 1 || rating > 5)
+            {
+                res.code = 400;
+                res.write("invalid input");
+                return res.end();
+            }
+    
+            sqlite3* db = openDB("book_review.sqlite");
+            if (!db)
+            {
+                res.code = 500;
+                res.write("database error");
+                return res.end();
+            }
+    
+            sqlite3_stmt* stmt;
+            const char* sql_user = "SELECT id FROM users WHERE username = ?;";
+            if (sqlite3_prepare_v2(db, sql_user, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare statement");
+                return res.end();
+            }
+    
+            sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
+            int rc = sqlite3_step(stmt);
+            if (rc != SQLITE_ROW)
+            {
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+                res.code = 404;
+                res.write("user not found");
+                return res.end();
+            }
+    
+            int user_id = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+    
+            const char* sql_insert = "INSERT INTO reviews (user_id, book_id, rating, comment) VALUES (?, ?, ?, ?);";
+            if (sqlite3_prepare_v2(db, sql_insert, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare insert statement");
+                return res.end();
+            }
+    
+            sqlite3_bind_int(stmt, 1, user_id);
+            sqlite3_bind_int(stmt, 2, book_id);
+            sqlite3_bind_int(stmt, 3, rating);
+            sqlite3_bind_text(stmt, 4, comment.c_str(), -1, SQLITE_TRANSIENT);
+    
+            rc = sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+    
+            if (rc != SQLITE_DONE)
+            {
+                res.code = 500;
+                res.write("failed to add review");
+                return res.end();
+            }
+    
+            res.code = 200;
+            res.write("review added successfully");
+            return res.end(); });
+
+    // editing review
+    CROW_ROUTE(app, "/reviews/<int>/edit").methods(crow::HTTPMethod::PUT)([](const crow::request &req, crow::response &res, int review_id)
+                                                                          {
+            auto body = crow::json::load(req.body);
+            if (!body)
+            {
+                res.code = 400;
+                res.write("invalid JSON");
+                return res.end();
+            }
+    
+            std::string username = body["username"].s();
+            int rating = body["rating"].i();
+            std::string comment = body["comment"].s();
+    
+            if (username.empty() || rating < 1 || rating > 5)
+            {
+                res.code = 400;
+                res.write("invalid input");
+                return res.end();
+            }
+    
+            sqlite3* db = openDB("book_review.sqlite");
+            if (!db)
+            {
+                res.code = 500;
+                res.write("database error");
+                return res.end();
+            }
+    
+            sqlite3_stmt* stmt;
+            const char* sql_user = "SELECT id FROM users WHERE username = ?;";
+            if (sqlite3_prepare_v2(db, sql_user, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare user query");
+                return res.end();
+            }
+    
+            sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) != SQLITE_ROW)
+            {
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+                res.code = 404;
+                res.write("user not found");
+                return res.end();
+            }
+    
+            int user_id = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+    
+            const char* sql_check = "SELECT user_id FROM reviews WHERE id = ?;";
+            if (sqlite3_prepare_v2(db, sql_check, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare ownership check");
+                return res.end();
+            }
+    
+            sqlite3_bind_int(stmt, 1, review_id);
+            if (sqlite3_step(stmt) != SQLITE_ROW || sqlite3_column_int(stmt, 0) != user_id)
+            {
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+                res.code = 403;
+                res.write("forbidden: Not your review");
+                return res.end();
+            }
+            sqlite3_finalize(stmt);
+    
+            const char* sql_update = "UPDATE reviews SET rating = ?, comment = ? WHERE id = ?;";
+            if (sqlite3_prepare_v2(db, sql_update, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare update");
+                return res.end();
+            }
+    
+            sqlite3_bind_int(stmt, 1, rating);
+            sqlite3_bind_text(stmt, 2, comment.c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt, 3, review_id);
+    
+            int rc = sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+    
+            if (rc != SQLITE_DONE)
+            {
+                res.code = 500;
+                res.write("failed to update review");
+                return res.end();
+            }
+    
+            res.code = 200;
+            res.write("review updated successfully");
+            return res.end(); });
+
+    // deleting review
+    CROW_ROUTE(app, "/reviews/<int>/delete").methods(crow::HTTPMethod::DELETE)([](const crow::request &req, crow::response &res, int review_id)
+                                                                               {
+            auto body = crow::json::load(req.body);
+            if (!body)
+            {
+                res.code = 400;
+                res.write("invalid JSON");
+                return res.end();
+            }
+    
+            std::string username = body["username"].s();
+            if (username.empty())
+            {
+                res.code = 400;
+                res.write("username required");
+                return res.end();
+            }
+    
+            sqlite3* db = openDB("book_review.sqlite");
+            if (!db)
+            {
+                res.code = 500;
+                res.write("database error");
+                return res.end();
+            }
+    
+            sqlite3_stmt* stmt;
+    
+            // Get user_id
+            const char* sql_user = "SELECT id FROM users WHERE username = ?;";
+            if (sqlite3_prepare_v2(db, sql_user, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare user lookup");
+                return res.end();
+            }
+    
+            sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) != SQLITE_ROW)
+            {
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+                res.code = 404;
+                res.write("user not found");
+                return res.end();
+            }
+            int user_id = sqlite3_column_int(stmt, 0);
+            sqlite3_finalize(stmt);
+    
+            // Check ownership
+            const char* sql_check = "SELECT user_id FROM reviews WHERE id = ?;";
+            if (sqlite3_prepare_v2(db, sql_check, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare ownership check");
+                return res.end();
+            }
+    
+            sqlite3_bind_int(stmt, 1, review_id);
+            if (sqlite3_step(stmt) != SQLITE_ROW || sqlite3_column_int(stmt, 0) != user_id)
+            {
+                sqlite3_finalize(stmt);
+                sqlite3_close(db);
+                res.code = 403;
+                res.write("forbidden: Not your review");
+                return res.end();
+            }
+            sqlite3_finalize(stmt);
+    
+            // Delete review
+            const char* sql_delete = "DELETE FROM reviews WHERE id = ?;";
+            if (sqlite3_prepare_v2(db, sql_delete, -1, &stmt, nullptr) != SQLITE_OK)
+            {
+                sqlite3_close(db);
+                res.code = 500;
+                res.write("failed to prepare delete statement");
+                return res.end();
+            }
+    
+            sqlite3_bind_int(stmt, 1, review_id);
+            int rc = sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+            sqlite3_close(db);
+    
+            if (rc != SQLITE_DONE)
+            {
+                res.code = 500;
+                res.write("failed to delete review");
+                return res.end();
+            }
+    
+            res.code = 200;
+            res.write("review deleted successfully");
+            return res.end(); });
 
     // set the port, set the app to run on multiple threads, and run the app
     app.port(18080)
