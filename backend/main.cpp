@@ -222,10 +222,9 @@ int main()
         if (!body) return crow::response(400, "Invalid JSON");
 
         std::string username = body["username"].s();
-        std::string email = body["email"].s();
         std::string password = body["password"].s();
 
-        if (username.empty() || email.empty() || password.empty()) {
+        if (username.empty() || password.empty()) {
             return crow::response(400, "Missing username or password");
         }
 
@@ -571,7 +570,5 @@ int main()
             return res.end(); });
 
     // set the port, set the app to run on multiple threads, and run the app
-    app.port(18080)
-        .multithreaded()
-        .run();
+    app.bindaddr("0.0.0.0").port(18080).run();
 }
