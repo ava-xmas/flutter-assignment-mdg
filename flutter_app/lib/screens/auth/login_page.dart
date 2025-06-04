@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_app/screens/auth/auth_cubit.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -34,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
 
   final Dio _dio = Dio();
 
-  Future<void> _login() async {
+  Future<void> _login({required AuthCubit authCubit}) async {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -61,10 +64,22 @@ class _LoginPageState extends State<LoginPage> {
 
       // handle success
       if (response.statusCode == 200) {
-        print("Login successfull ${response.data}");
+        print("Login successful ${response.data}");
+        authCubit.login(username: username);
         setState(() {
           errorText = "";
         });
+
+        // wait for a bit
+        await Future.delayed(Duration(milliseconds: 500));
+
+        // setState(() {
+        //   errorText = "Logged in yay!";
+        // });
+
+        if (!mounted) return;
+        // take user to books screen
+        context.go('/books');
       }
     } on DioException catch (e) {
       setState(() {
@@ -83,6 +98,9 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final AuthState authState = context.watch<AuthCubit>().state;
+    final AuthCubit authCubit = context.read<AuthCubit>();
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -124,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _login,
+                  onPressed: () => _login(authCubit: authCubit),
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
                     padding: EdgeInsets.symmetric(vertical: 16),
@@ -138,9 +156,12 @@ class _LoginPageState extends State<LoginPage> {
 
               SizedBox(height: 5),
 
-              Text(
-                "Sign up instead",
-                textAlign: TextAlign.end,
+              GestureDetector(
+                onTap: () => context.go('/signup'),
+                child: Text(
+                  "Sign up instead",
+                  textAlign: TextAlign.end,
+                ),
               ),
             ],
           ),

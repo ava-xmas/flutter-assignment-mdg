@@ -235,6 +235,55 @@ int main()
         } });
 
     // getting all books
+    CROW_ROUTE(app, "/books").methods(crow::HTTPMethod::GET)([](const crow::request &req, crow::response &res)
+                                                             {
+    sqlite3* db = openDB("book_review.sqlite");
+    if (!db) {
+        res.code = 500;
+        res.write("failed to open database.");
+        res.end();
+        return;
+    }
+
+    const char* sql = "SELECT id, title, summary, image_url FROM books;";
+    sqlite3_stmt* stmt = nullptr;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        sqlite3_close(db);
+        res.code = 500;
+        res.write("failed to prepare statement.");
+        res.end();
+        return;
+    }
+
+    crow::json::wvalue books = crow::json::wvalue::list();
+    int index = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        crow::json::wvalue book;
+        book["id"] = sqlite3_column_int(stmt, 0);
+
+        const char* title = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        book["title"] = title ? title : "";
+
+        const char* summary = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        book["summary"] = summary ? summary : "";
+
+        const char* image = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
+        book["image"] = image ? image : "";
+
+        books[index++] = std::move(book);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+
+    res.set_header("Content-Type", "application/json");
+    res.code = 200;
+    res.write(books.dump());
+    res.end(); });
+
+    // getting all reviews on a book
     CROW_ROUTE(app, "/books/<int>/reviews").methods(crow::HTTPMethod::GET)([](const crow::request &req, crow::response &res, int book_id)
                                                                            {
             sqlite3* db = openDB("book_review.sqlite");

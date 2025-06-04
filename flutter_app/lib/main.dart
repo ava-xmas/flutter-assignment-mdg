@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 // import pages
@@ -7,9 +8,19 @@ import 'screens/auth/login_page.dart';
 import 'screens/auth/signup_page.dart';
 import './screens/books_page.dart';
 import './screens/book_page.dart';
+// import blocs
+import './screens/auth/auth_cubit.dart';
+import './bloc/books_bloc.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MultiBlocProvider(providers: [
+    BlocProvider<AuthCubit>(
+      create: (BuildContext context) => AuthCubit(),
+    ),
+    BlocProvider<BooksBloc>(
+      create: (BuildContext context) => BooksBloc()..add(FetchBooks()),
+    ),
+  ], child: const MyApp()));
 }
 
 final GoRouter _router = GoRouter(
@@ -34,14 +45,31 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/books',
+      // protected route
+      redirect: (context, state) {
+        final authState = context.read<AuthCubit>().state;
+        if (authState.status == AuthState.unauthenticated()) {
+          return '/';
+        }
+      },
       builder: (BuildContext context, GoRouterState state) {
-        return const BooksPage();
+        final authState = context.read<AuthCubit>().state;
+        final username = authState.username ?? "Guest";
+        return BooksPage(username: username);
       },
     ),
     GoRoute(
       path: '/book/:bookId',
+      // protected route
+      redirect: (context, state) {
+        final authState = context.read<AuthCubit>().state;
+        if (authState.status == AuthState.unauthenticated()) {
+          return '/';
+        }
+      },
       builder: (BuildContext context, GoRouterState state) {
-        return BookPage(bookId: state.pathParameters["userId"]);
+        final bookId = int.tryParse(state.pathParameters["bookId"] ?? "");
+        return BookPage(bookId: bookId);
       },
     ),
   ],
@@ -54,7 +82,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Flutter Demo',
+      title: 'Ink & Insight',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -62,53 +90,6 @@ class MyApp extends StatelessWidget {
       ),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

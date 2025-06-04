@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -44,14 +45,18 @@ class _LandingPageState extends State<LandingPage> {
               Column(
                 children: [
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      context.go('/signup');
+                    },
                     child: Text(
                       "Sign up",
                       style: buttonStyle,
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      context.go('/login');
+                    },
                     child: Text(
                       "Log in",
                       style: buttonStyle,
