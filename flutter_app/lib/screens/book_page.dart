@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class BookPage extends StatefulWidget {
-  const BookPage({super.key});
+  String? bookId;
+
+  BookPage({super.key, required this.bookId});
 
   @override
   State<BookPage> createState() => _BookPageState();
@@ -10,6 +12,8 @@ class BookPage extends StatefulWidget {
 class _BookPageState extends State<BookPage> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Center(
+      child: Text('Book ID: ${widget.bookId}'),
+    );
   }
 }

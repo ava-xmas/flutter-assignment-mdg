@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 // import pages
 import './screens/landing_page.dart';
@@ -11,13 +12,48 @@ void main() {
   runApp(const MyApp());
 }
 
+final GoRouter _router = GoRouter(
+  routes: <RouteBase>[
+    GoRoute(
+      path: '/',
+      builder: (BuildContext context, GoRouterState state) {
+        return const LandingPage();
+      },
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (BuildContext context, GoRouterState state) {
+        return const LoginPage();
+      },
+    ),
+    GoRoute(
+      path: '/signup',
+      builder: (BuildContext context, GoRouterState state) {
+        return const SignupPage();
+      },
+    ),
+    GoRoute(
+      path: '/books',
+      builder: (BuildContext context, GoRouterState state) {
+        return const BooksPage();
+      },
+    ),
+    GoRoute(
+      path: '/book/:bookId',
+      builder: (BuildContext context, GoRouterState state) {
+        return BookPage(bookId: state.pathParameters["userId"]);
+      },
+    ),
+  ],
+);
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -25,7 +61,7 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.lexendDecaTextTheme(),
       ),
       debugShowCheckedModeBanner: false,
-      home: LoginPage(),
+      routerConfig: _router,
     );
   }
 }
