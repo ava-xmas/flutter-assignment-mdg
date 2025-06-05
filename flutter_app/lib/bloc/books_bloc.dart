@@ -3,11 +3,13 @@ import '../models/book_model.dart';
 import 'package:dio/dio.dart';
 
 // events
+
 abstract class BooksEvent {}
 
 class FetchBooks extends BooksEvent {}
 
 // states
+
 abstract class BooksState {}
 
 class BooksInitial extends BooksState {}
@@ -27,6 +29,7 @@ class BooksError extends BooksState {
 }
 
 // bloc
+
 class BooksBloc extends Bloc<BooksEvent, BooksState> {
   final Dio _dio = Dio();
 

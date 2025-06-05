@@ -11,6 +11,7 @@ import './screens/book_page.dart';
 // import blocs
 import './screens/auth/auth_cubit.dart';
 import './bloc/books_bloc.dart';
+import './bloc/reviews_bloc.dart';
 
 void main() {
   runApp(MultiBlocProvider(providers: [
@@ -59,7 +60,7 @@ final GoRouter _router = GoRouter(
       },
     ),
     GoRoute(
-      path: '/book/:bookId',
+      path: '/book/:id',
       // protected route
       redirect: (context, state) {
         final authState = context.read<AuthCubit>().state;
@@ -67,9 +68,25 @@ final GoRouter _router = GoRouter(
           return '/';
         }
       },
-      builder: (BuildContext context, GoRouterState state) {
-        final bookId = int.tryParse(state.pathParameters["bookId"] ?? "");
-        return BookPage(bookId: bookId);
+      builder: (context, state) {
+        final bookId = int.tryParse(state.pathParameters['id'] ?? '');
+        if (bookId == null) {
+          return const SizedBox(
+            child: Center(
+              child: Text("bookId is null"),
+            ),
+          );
+        }
+        return MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: context.read<BooksBloc>()),
+            BlocProvider<ReviewsBloc>(
+              create: (BuildContext context) =>
+                  ReviewsBloc()..add(FetchReviews(bookId)),
+            ),
+          ],
+          child: BookPage(id: bookId),
+        );
       },
     ),
   ],
