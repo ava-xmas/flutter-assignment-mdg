@@ -1,6 +1,7 @@
 import '../models/review_model.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:dio/dio.dart';
+import '../env.dart';
 
 // events
 
@@ -42,8 +43,8 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
       emit(ReviewsLoading());
 
       try {
-        final response = await _dio
-            .get('http://192.168.10.39:18080/books/${event.bookId}/reviews');
+        final response =
+            await _dio.get('$baseUrl/books/${event.bookId}/reviews');
 
         final List<dynamic> data = response.data;
 

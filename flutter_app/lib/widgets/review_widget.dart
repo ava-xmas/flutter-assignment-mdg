@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/reviews_bloc.dart';
+import '../bloc/review_bloc.dart';
 import '../models/review_model.dart';
 import '../screens/auth/auth_cubit.dart';
 
 class ReviewWidget extends StatefulWidget {
+  final int bookId;
   final Review review;
   const ReviewWidget({
     super.key,
+    required this.bookId,
     required this.review,
   });
 
@@ -36,9 +40,55 @@ class _ReviewWidgetState extends State<ReviewWidget> {
     super.dispose();
   }
 
-  void _saveEdit() {
+  void _editReview() {
+    // call review bloc
+    final myUsername = context.read<AuthCubit>().state.username;
+
+    context.read<ReviewBloc>().add(UpdateReview(
+          reviewId: widget.review.id,
+          newRating: _rating,
+          newComment: _commentController.text,
+          username: myUsername!,
+        ));
+
     setState(() {
-      // call reviews bloc
+      isEditing = false;
+    });
+  }
+
+  void _deleteReview() async {
+    final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Delete review"),
+            content: Text("Are you sure you want to delete this review?"),
+            actions: [
+              IconButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  icon: Icon(Icons.check)),
+              IconButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  icon: Icon(Icons.close)),
+            ],
+          );
+        });
+
+    if (confirm != true) return;
+
+    // call review bloc
+    if (!mounted) return;
+
+    final myUsername = context.read<AuthCubit>().state.username;
+
+    context.read<ReviewBloc>().add(DeleteReview(
+          reviewId: widget.review.id,
+          username: myUsername!,
+        ));
+
+    context.read<ReviewsBloc>().add(FetchReviews(widget.bookId));
+
+    setState(() {
       isEditing = false;
     });
   }
@@ -71,9 +121,7 @@ class _ReviewWidgetState extends State<ReviewWidget> {
                   if (!isEditing)
                     IconButton(
                       icon: Icon(Icons.delete, size: 16),
-                      onPressed: () {
-                        // Handle delete action
-                      },
+                      onPressed: _deleteReview,
                     ),
                 ],
               ),
@@ -109,9 +157,7 @@ class _ReviewWidgetState extends State<ReviewWidget> {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  onPressed: () {
-                    _saveEdit();
-                  },
+                  onPressed: _editReview,
                   icon: Icon(Icons.save),
                 ),
               )

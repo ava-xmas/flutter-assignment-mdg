@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/bloc/books_bloc.dart';
+import 'package:flutter_app/bloc/review_bloc.dart';
 import 'package:flutter_app/bloc/reviews_bloc.dart';
+import 'package:flutter_app/screens/auth/auth_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/book_model.dart';
 import '../widgets/review_widget.dart';
+import 'books_page.dart';
 
 class BookPage extends StatefulWidget {
   final int id;
@@ -15,6 +18,39 @@ class BookPage extends StatefulWidget {
 }
 
 class _BookPageState extends State<BookPage> {
+  late TextEditingController _newCommentController;
+  int rating = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _newCommentController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _newCommentController.dispose();
+    super.dispose();
+  }
+
+  void submitNewReview() {
+    final String username = context.read<AuthCubit>().state.username!;
+    final String newComment = _newCommentController.text;
+    final int _rating = rating;
+
+    context.read<ReviewBloc>().add(AddReview(
+          bookId: widget.id,
+          rating: _rating,
+          comment: newComment,
+          username: username,
+        ));
+
+    setState(() {
+      _newCommentController.clear();
+      rating = 5;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,66 +130,112 @@ class _BookPageState extends State<BookPage> {
 
                         // reviews area
 
-                        BlocBuilder<ReviewsBloc, ReviewsState>(
-                          builder: (context, state) {
-                            if (state is ReviewsLoading) {
-                              return Center(child: CircularProgressIndicator());
-                            } else if (state is ReviewsLoaded) {
-                              final reviews = state.reviews;
-
-                              if (reviews.isEmpty) {
-                                return Center(
-                                  child: Text("No reviews yet."),
-                                );
-                              }
-                              // calculate average rating
-                              double avgRating = reviews
-                                      .map((r) => r.rating)
-                                      .reduce((a, b) => a + b) /
-                                  reviews.length;
-
-                              // count ratings per star level
-                              final ratingCounts = List<int>.filled(5, 0);
-                              for (var r in reviews) {
-                                final index = r.rating.floor().clamp(1, 5) - 1;
-                                ratingCounts[index]++;
-                              }
-
-                              return Column(
-                                children: [
-                                  Text(
-                                    "Average Rating: ${avgRating.toStringAsFixed(1)} / 5.0",
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-
-                                  Text("Ratings summary"), // llm
-
-                                  Text("All reviews"),
-
-                                  ListView.builder(
-                                      shrinkWrap: true,
-                                      physics: NeverScrollableScrollPhysics(),
-                                      itemCount: reviews.length,
-                                      itemBuilder: (context, index) {
-                                        final review = reviews[index];
-                                        return Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: ReviewWidget(
-                                            review: review,
-                                          ),
-                                        );
-                                      }),
-                                ],
-                              );
-                            } else if (state is ReviewsError) {
-                              return Text(
-                                  "Failed to load reviews: ${state.message}");
-                            } else {
-                              return SizedBox();
+                        // providing the review bloc
+                        BlocListener<ReviewBloc, ReviewState>(
+                          listener: (context, state) {
+                            if (state is ReviewSuccess) {
+                              // refresh the reviews
+                              context
+                                  .read<ReviewsBloc>()
+                                  .add(FetchReviews(widget.id));
                             }
                           },
+                          child: BlocBuilder<ReviewsBloc, ReviewsState>(
+                            builder: (context, state) {
+                              if (state is ReviewsLoading) {
+                                return Center(
+                                    child: CircularProgressIndicator());
+                              } else if (state is ReviewsLoaded) {
+                                final reviews = state.reviews;
+
+                                if (reviews.isEmpty) {
+                                  return Center(
+                                    child: Text("No reviews yet."),
+                                  );
+                                }
+                                // calculate average rating
+                                double avgRating = reviews
+                                        .map((r) => r.rating)
+                                        .reduce((a, b) => a + b) /
+                                    reviews.length;
+
+                                // count ratings per star level
+                                final ratingCounts = List<int>.filled(5, 0);
+                                for (var r in reviews) {
+                                  final index =
+                                      r.rating.floor().clamp(1, 5) - 1;
+                                  ratingCounts[index]++;
+                                }
+
+                                return Column(
+                                  children: [
+                                    Text(
+                                      "Average Rating: ${avgRating.toStringAsFixed(1)} / 5.0",
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+
+                                    Text("Ratings summary"), // llm
+
+                                    Text("Add a review"),
+                                    Column(
+                                      children: [
+                                        Slider(
+                                          value: rating.toDouble(),
+                                          min: 1,
+                                          max: 5,
+                                          divisions: 4,
+                                          label: rating.toString(),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              rating = value.round();
+                                            });
+                                          },
+                                        ),
+                                        TextField(
+                                          controller: _newCommentController,
+                                          maxLines: 2,
+                                          decoration: InputDecoration(
+                                            border: OutlineInputBorder(),
+                                            hintText: 'Add a comment...',
+                                          ),
+                                        ),
+                                        Align(
+                                          alignment: Alignment.centerRight,
+                                          child: TextButton(
+                                            onPressed: submitNewReview,
+                                            child: Text("Submit"),
+                                          ),
+                                        )
+                                      ],
+                                    ),
+                                    Text("All reviews"),
+
+                                    ListView.builder(
+                                        shrinkWrap: true,
+                                        physics: NeverScrollableScrollPhysics(),
+                                        itemCount: reviews.length,
+                                        itemBuilder: (context, index) {
+                                          final review = reviews[index];
+                                          return Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: ReviewWidget(
+                                              bookId: widget.id,
+                                              review: review,
+                                            ),
+                                          );
+                                        }),
+                                  ],
+                                );
+                              } else if (state is ReviewsError) {
+                                return Text(
+                                    "Failed to load reviews: ${state.message}");
+                              } else {
+                                return SizedBox();
+                              }
+                            },
+                          ),
                         ),
                       ],
                     ),

@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/book_model.dart';
 import 'package:dio/dio.dart';
+import '../env.dart';
 
 // events
 
@@ -38,7 +39,7 @@ class BooksBloc extends Bloc<BooksEvent, BooksState> {
       emit(BooksLoading());
 
       try {
-        final response = await _dio.get('http://192.168.10.39:18080/books');
+        final response = await _dio.get('$baseUrl/books');
 
         final List<dynamic> data = response.data;
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/bloc/review_bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -67,6 +68,7 @@ final GoRouter _router = GoRouter(
         if (authState.status == AuthState.unauthenticated()) {
           return '/';
         }
+        return null;
       },
       builder: (context, state) {
         final bookId = int.tryParse(state.pathParameters['id'] ?? '');
@@ -84,6 +86,9 @@ final GoRouter _router = GoRouter(
               create: (BuildContext context) =>
                   ReviewsBloc()..add(FetchReviews(bookId)),
             ),
+            BlocProvider(
+              create: (BuildContext context) => ReviewBloc(),
+            )
           ],
           child: BookPage(id: bookId),
         );

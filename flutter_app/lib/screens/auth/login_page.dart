@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_app/env.dart';
 import 'package:flutter_app/screens/auth/auth_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -50,7 +51,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await _dio.post(
-        'http://192.168.10.39:18080/login',
+        '$baseUrl/login',
         data: {
           "username": username,
           "password": password,
@@ -82,6 +83,7 @@ class _LoginPageState extends State<LoginPage> {
         context.go('/books');
       }
     } on DioException catch (e) {
+      print(e);
       setState(() {
         errorText = e.response?.data.toString() ??
             "Could not connect to server: ${e.message}";

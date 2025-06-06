@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_app/env.dart';
 import 'package:flutter_app/screens/auth/auth_cubit.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -51,7 +52,7 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final response = await _dio.post(
-        'http://192.168.10.39:18080/register',
+        '$baseUrl/register',
         data: {
           "username": username,
           "email": email,

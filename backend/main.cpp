@@ -295,7 +295,7 @@ int main()
             }
     
             const char* sql = R"(
-                SELECT r.rating, r.comment, u.username
+                SELECT r.id, r.rating, r.comment, u.username
                 FROM reviews r
                 JOIN users u ON r.user_id = u.id
                 WHERE r.book_id = ?;
@@ -317,12 +317,14 @@ int main()
     
             while (sqlite3_step(stmt) == SQLITE_ROW) {
                 crow::json::wvalue review;
-                review["rating"] = sqlite3_column_int(stmt, 0);
+                review["id"] = sqlite3_column_int(stmt, 0);
+
+                review["rating"] = sqlite3_column_int(stmt, 1);
     
-                const char* comment_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+                const char* comment_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
                 review["comment"] = comment_text ? comment_text : "";
     
-                const char* username_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+                const char* username_text = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
                 review["username"] = username_text ? username_text : "";
     
                 reviews[index++] = std::move(review);
